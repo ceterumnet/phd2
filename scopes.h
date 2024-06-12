@@ -61,6 +61,7 @@
     #define GUIDE_ONCAMERA
     #define GUIDE_ONSTEPGUIDER
     #define GUIDE_INDI
+    #define GUIDE_ALPACA
 
 #endif // WINDOWS/APPLE/LINUX
 
@@ -76,5 +77,6 @@
 #include "scope_GC_USBST4.h"
 #include "scope_indi.h"
 #include "scope_manual_pointing.h"
+#include "scope_alpaca.h"
 
 #endif /* SCOPES_H_INCLUDED */

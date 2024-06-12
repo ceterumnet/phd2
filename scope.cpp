@@ -325,11 +325,22 @@ static wxString INDIMountName()
     return val.empty() ? _("INDI Mount") : wxString::Format(_("INDI Mount [%s]"), val);
 }
 
+// static wxString AlpacaMountName() {
+//     wxString val = pConfig->Profile.GetString("/alpaca/Alpacamount", wxEmptyString);
+//     return val.empty() ? _("Alpaca Mount")
+//                        : wxString::Format(_("Alpaca Mount [%s]"), val);
+// }
+
 wxArrayString Scope::MountList()
 {
     wxArrayString ScopeList;
 
     ScopeList.Add(_("None"));
+#ifdef GUIDE_ALPACA
+    wxArrayString alpacaScopes = ScopeAlpaca::EnumAlpacaScopes();
+    for (unsigned int i = 0; i < alpacaScopes.Count(); i++)
+        ScopeList.Add(alpacaScopes[i]);
+#endif
 #ifdef GUIDE_ASCOM
     wxArrayString ascomScopes = ScopeASCOM::EnumAscomScopes();
     for (unsigned int i = 0; i < ascomScopes.Count(); i++)
@@ -362,7 +373,6 @@ wxArrayString Scope::MountList()
 #ifdef GUIDE_INDI
     ScopeList.Add(INDIMountName());
 #endif
-
     ScopeList.Sort(&CompareNoCase);
 
     return ScopeList;
@@ -413,6 +423,10 @@ Scope *Scope::Factory(const wxString& choice)
 #ifdef GUIDE_INDI
         else if (choice.Contains(_("INDI")))
             pReturn = INDIScopeFactory::MakeINDIScope();
+#endif
+#ifdef GUIDE_ALPACA
+        else if (choice.Contains(_T("Alpaca")))
+            pReturn = new ScopeAlpaca(choice);
 #endif
         else if (choice == _("None"))
             pReturn = nullptr;

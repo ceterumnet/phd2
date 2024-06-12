@@ -301,6 +301,8 @@ set(scopes_SRC
   ${phd_src_dir}/stepguider.cpp
   ${phd_src_dir}/stepguider.h
   ${phd_src_dir}/stepguiders.h
+  ${phd_src_dir}/scope_alpaca.cpp
+  ${phd_src_dir}/scope_alpaca.h
 )
 source_group(Scopes FILES ${scopes_SRC})
 
