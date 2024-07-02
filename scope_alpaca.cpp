@@ -10,6 +10,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <thread>
+#include <errno.h>
+
 #ifdef GUIDE_ALPACA
 
 static std::map<std::string, std::string> alpaca_telescopes;
@@ -107,21 +109,31 @@ wxArrayString ScopeAlpaca::EnumAlpacaScopes() {
   std::string discovery_msg = "alpacadiscovery1";
 
   Debug.Write(wxString::Format("Alpaca Scope: Sending discovery message\n"));
-  socklen_t len;
+
   sendto(s, discovery_msg.data(), discovery_msg.length(), 0,
          (const sockaddr *)&si_me, sizeof(si_me));
   Debug.Write(wxString::Format("Discovery message sent. Waiting for reply\n"));
 
   int ret = 0;
-  socklen_t r_len;
-  int flags = 0;
+  // socklen_t r_len;
+  int flags = 0; // | SO_BROADCAST;
   int count = 0;
-  int addr_len = sizeof(struct sockaddr_in);
+  int r_len = sizeof(struct sockaddr_in);
+  // socklen_t addr_len;
   std::string discovery_url = "http://";
 
   struct timeval tv;
   tv.tv_sec = 0;
-  tv.tv_usec = 750000;
+  tv.tv_usec = 250000;
+
+  std::string rsp_buf;
+  rsp_buf.resize(1024);
+
+  if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    Debug.Write(
+        wxString::Format("Alpaca Scope: Error setting socket timeout\n"));
+    return list;
+  }
 
   CURLcode curl_res;
   curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -137,24 +149,23 @@ wxArrayString ScopeAlpaca::EnumAlpacaScopes() {
   // try a few times since it's UDP broadcast and we may have multiple alpaca
   // servers answering
   for (int i = 0; i < 5; i++) {
-    std::string rsp_buf;
-    rsp_buf.resize(1024);
-
-    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-      Debug.Write(
-          wxString::Format("Alpaca Scope: Error setting socket timeout\n"));
-      return list;
-    }
 
     memset(&si_server, 0, sizeof(si_server));
     si_server.sin_family = AF_INET;
     si_server.sin_addr.s_addr = INADDR_ANY;
     // si_server.sin_port = 32227;
-    count = recvfrom(s, &rsp_buf[0], 1023, flags, (struct sockaddr *)&si_server,
+    socklen_t r_len = sizeof si_server;
+    count = recvfrom(s, &rsp_buf[0], 1024, flags, (struct sockaddr *)&si_server,
                      &r_len);
+
+    if(count == -1) {
+      Debug.Write(wxString::Format("Alpaca Scope: error from recvfrom: %s\n",
+                                   strerror(errno)));
+    }
 
     Debug.Write(wxString::Format("Alpaca Scope: count value in loop: %d\n", count));
     if (count > 0) {
+      Debug.Write(wxString::Format("Received response. \n"));
       std::string i_addr_str;
       i_addr_str.resize(r_len + 1);
       inet_ntop(AF_INET, &si_server.sin_addr, &i_addr_str[0], r_len);
