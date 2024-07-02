@@ -112,10 +112,6 @@ wxArrayString ScopeAlpaca::EnumAlpacaScopes() {
          (const sockaddr *)&si_me, sizeof(si_me));
   Debug.Write(wxString::Format("Discovery message sent. Waiting for reply\n"));
 
-  std::string rsp_buf;
-  rsp_buf.resize(1024);
-  struct sockaddr_in Recv_addr;
-
   int ret = 0;
   socklen_t r_len;
   int flags = 0;
@@ -125,12 +121,7 @@ wxArrayString ScopeAlpaca::EnumAlpacaScopes() {
 
   struct timeval tv;
   tv.tv_sec = 0;
-  tv.tv_usec = 250000;
-  if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-    Debug.Write(
-        wxString::Format("Alpaca Scope: Error setting socket timeout\n"));
-    return list;
-  }
+  tv.tv_usec = 750000;
 
   CURLcode curl_res;
   curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -146,11 +137,23 @@ wxArrayString ScopeAlpaca::EnumAlpacaScopes() {
   // try a few times since it's UDP broadcast and we may have multiple alpaca
   // servers answering
   for (int i = 0; i < 5; i++) {
+    std::string rsp_buf;
+    rsp_buf.resize(1024);
+
+    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+      Debug.Write(
+          wxString::Format("Alpaca Scope: Error setting socket timeout\n"));
+      return list;
+    }
+
     memset(&si_server, 0, sizeof(si_server));
-    si_me.sin_family = AF_INET;
+    si_server.sin_family = AF_INET;
     si_server.sin_addr.s_addr = INADDR_ANY;
-    count = recvfrom(s, &rsp_buf[0], 1024, flags, (struct sockaddr *)&si_server,
+    // si_server.sin_port = 32227;
+    count = recvfrom(s, &rsp_buf[0], 1023, flags, (struct sockaddr *)&si_server,
                      &r_len);
+
+    Debug.Write(wxString::Format("Alpaca Scope: count value in loop: %d\n", count));
     if (count > 0) {
       std::string i_addr_str;
       i_addr_str.resize(r_len + 1);
@@ -202,6 +205,8 @@ wxArrayString ScopeAlpaca::EnumAlpacaScopes() {
             wxString::Format("Alpaca Scope: Problem parsing discovery payload\n"));
         }
       }
+    } else {
+      Debug.Write(wxString::Format("Alpaca Scope: we did not receive a discovery response.\n"));
     }
   };
 
